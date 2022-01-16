@@ -8,12 +8,11 @@ import MonacoEditor, {
 } from "@monaco-editor/react";
 // @ts-ignore
 import bundled from "!raw-loader!../magic-string-playground.d.ts";
-
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+import lz from "lz-string";
 
 async function evaluate(code: string, input: string): Promise<string> {
   try {
-    const fn = new AsyncFunction("ms", "original", code);
+    const fn = eval(`(async function(ms, original) { ${code} }).bind(null)`);
     const ms = new MagicString(input);
     await fn(ms, input);
     const map = ms.generateMap({
@@ -43,9 +42,30 @@ const INITIAL_TRANSFORMATION = `
 ms.append(". This is amazing!");
 `.trim();
 
+function getInitialState(): { code: string; transformation: string } {
+  if (typeof window !== "undefined") {
+    const url = new URL(window.location.href);
+    const state = url.searchParams.get("state");
+    if (state) {
+      try {
+        return JSON.parse(lz.decompressFromEncodedURIComponent(state)!);
+      } catch {}
+    }
+  }
+
+  return {
+    code: INITIAL_CODE,
+    transformation: INITIAL_TRANSFORMATION,
+  };
+}
+
+const initialState = getInitialState();
+
 export default function Home() {
-  let [code, setCode] = useState(INITIAL_CODE);
-  let [transformation, setTransformation] = useState(INITIAL_TRANSFORMATION);
+  let [code, setCode] = useState(initialState.code);
+  let [transformation, setTransformation] = useState(
+    initialState.transformation
+  );
   let [output, setOutput] = useState("");
   let [isErrored, setIsErrored] = useState<string>();
   const monaco = useMonaco();
@@ -55,6 +75,13 @@ export default function Home() {
     ref.current = true;
     setupSources(monaco);
   }
+
+  useEffect(() => {
+    const url = new URL(document.location.href);
+    const state = JSON.stringify({ code, transformation });
+    url.searchParams.set("state", lz.compressToEncodedURIComponent(state));
+    history.replaceState(null, "", url);
+  }, [transformation, code]);
 
   useEffect(() => {
     if (monaco) {
