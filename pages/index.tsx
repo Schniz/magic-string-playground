@@ -12,7 +12,9 @@ import lz from "lz-string";
 
 async function evaluate(code: string, input: string): Promise<string> {
   try {
-    const fn = eval(`(async function(ms, original) { ${code} }).bind(null)`);
+    const fn = eval(
+      `(async function(ms, original) { ${code}\n /**/ }).bind(null)`
+    );
     const ms = new MagicString(input);
     await fn(ms, input);
     const map = ms.generateMap({
