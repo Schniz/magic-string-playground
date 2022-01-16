@@ -9,9 +9,11 @@ import MonacoEditor, {
 // @ts-ignore
 import bundled from "!raw-loader!../magic-string-playground.d.ts";
 
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
 async function evaluate(code: string, input: string): Promise<string> {
   try {
-    const fn = new Function("ms", "original", code);
+    const fn = new AsyncFunction("ms", "original", code);
     const ms = new MagicString(input);
     await fn(ms, input);
     const map = ms.generateMap({
